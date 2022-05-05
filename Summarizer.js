@@ -2,100 +2,105 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-gray; icon-glyph: text-width;
 // share-sheet-inputs: plain-text;
-
+const REDUCE_TO = 0.3
 const punctuation = [",","!","?",".","'",'"',"/",]
-
 const fillers = "the,is,a,an,of,is,end,then,than,are".split(",")
 
-
-function cleaner(text){  
-  return text  
-    .replace(".","").replace(",", "")
-    .replace("!", "").replace("?", "")
-
-}    
-      
-function getTable(text){
-  scores = {}
-  const clean = cleaner(text)
-  words = clean.split(" ").filter(item=>item)
-
-  words.forEach( word => {
-    let w = word.toLowerCase()
-    if(!scores[w] && !fillers.includes(w)){
-      scores[w] = 1
-    } else {
-      scores[w]+=1
-    }
-  
-  })
-      
-  let max = 0
-  Object.keys(scores).forEach(k=>{
-    if(scores[k] > max) {
-      max = scores[k]
-    }
-  })
-  
-  Object.keys(scores)
-    .forEach( k => scores[k] = (scores[k]/max))  
-  return scores
+//text cleaning function to clear out punctuation and fillers
+const cleaner_splitter = (text)=>{
+  return text
+    .split("")//clear out punctuation
+    .filter(char=>!punctuation.includes(char))
+    .join("")
+    .toLowerCase()
+    .split(" ") //remove fillers
+    .filter(wrd => wrd && !fillers.includes(wrd));
 }
 
+const cleaner = (text) => text.replace(".","").replace(",", "").replace("!", "").replace("?", "").toLowerCase()
+//remove excess whitespace
+const de_ = str => str.split(" ").join(" ")
 
+/*
+* @param text the text to be analyzed
+* @returns an object that maps words to their normalized frequency in given text
+*/
+const getTable = (text) => {
+  let scores = {}
+  let unscored = cleaner_splitter(text)
+  unscored.forEach( w => {
+    if(!scores[w] && !fillers.includes(w)){
+      scores[w] = 1;
+    } else {
+      scores[w]+=1;
+  }});
+  
+  
+  const words = Object.keys(scores);
+  //find max frequency-word
+  let max = 0;
+  let max_word = ""
+  words.forEach( w => {
+    if(scores[w] > max) {
+      max = scores[w];
+      max_word=w;
+    }
+  });
+  
+  //normalize word frequency (Fnorm = Fwrd/Fmax)
+  words.forEach( wrd => scores[wrd] = (scores[wrd]/max))  
+  return scores , { word:max_word, frequency:max }
+}
 
-
-function scoreSentences( text ){  
-  const freqs = getTable(text)
-
+/*
+* @param text the text to summarize
+* @returns a summary of the text
+*/
+const summarize = ( text ) => {  
+  const freqs , { word , frequency } = getTable(text) 
+  //ensure all sentences end with "."
   const formatted = text  
     .replace("?",".")
-    .replace("!", ".")
-    
+    .replace("!", ".")    
   const sentences = formatted.split(".")
   scored = {}
-  sentences.forEach(sent=>{
+  //score sentences 
+  sentences.forEach( sent => {
     score = 0
-    words = cleaner(sent)
-      .split(" ").filter(i=>i)
-    
-
-
-    words.forEach(word=>{
-      w = word.toLowerCase()
+    let words = cleaner(sent.toLowerCase()).split(" ").filter(i=>i);
+    words.forEach( w => {
       if(!freqs[w]) return 
       score += freqs[w]
-  })
-  scored[sent] = score
-  
-})
+    });//end word scoring
+    scored[sent] = score
+  });//scoring done
 
   
+  //sort the scored sentences ( highest score first ) 
   const sorted = Object.keys(scored)
     .map(k=>[k,scored[k]])
-    .sort((a,b)=>b[1]-a[1])
+    .sort((a,b)=>b[1]-a[1]);
+
+  let result = "" , scoredResult = "";
+ 
+  //create result string [min 1 sentence]
+  const n = Math.max(sorted.length * REDUCE_TO , 1);  
+  for( let i = 0; i < n; i++){
+    let [sentence , score] = sorted[i]; 
+      scoredResult += `${de_(sentence)} | [${score.toFixed(3)}\n`
+      result += `${de_(sentence)}` 
+  }
   
-  let result = ""
-  count = 0
-  while( count < Math.max(sorted.length * 0.3 , 1)){    
-  result+= sorted[count][0] +" [ " + sorted[count][1].toFixed(3) + "]. "
-  count += 1
-
-
-}
-      
-  return result   
+  return`===Scored===\n${de_(scoredResult)}\n\n===Summary===\n${de_(result)}\n\n`
+  
 }
 
-function main(){
-const text = args.plainTexts[0]
-summary = scoreSentences(text)
-console.log(summary)
-Script.setShortcutOutput(summary)
-return summary
-
+const main() => {
+  const text = args.plainTexts[0]
+  const summary = summarize(text)
+  Script.setShortcutOutput(summary)
+  return summary
 }
 
-main()
-
+main();
 Script.complete()
