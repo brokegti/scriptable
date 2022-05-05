@@ -91,7 +91,7 @@ const summarize = ( text ) => {
       result += `${de_(sentence)}` 
   }
   
-  return`===Scored===\n${de_(scoredResult)}\n\n===Summary===\n${de_(result)}\n\n`
+  return`===Scored===\n${de_(scoredResult)}\n\n===Summary===\n${de_(result)}\n\nThe most frequent word in the text was ${word} [${frequency}]`
   
 }
 
